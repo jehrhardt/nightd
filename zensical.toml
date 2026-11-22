@@ -29,14 +29,6 @@ site_author = "Cozy Bytes GmbH"
 # Read more: https://zensical.org/docs/setup/basics/#site_url
 site_url = "https://nightd.ai/"
 
-# The copyright notice appears in the page footer and can contain an HTML
-# fragment.
-#
-# Read more: https://zensical.org/docs/setup/basics/#copyright
-copyright = """
-Copyright &copy; 2026 Cozy Bytes GmbH
-"""
-
 # Github project settings
 repo_url = "https://github.com/jehrhardt/nightd"
 repo_name = "jehrhardt/nightd"
