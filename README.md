@@ -4,21 +4,30 @@ An agent platform you can customize to your needs.
 
 ### Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install)
+- [mise](https://mise.jdx.dev/installing-mise.html)
 - [Podman](https://podman.io/docs/installation)
+
+### Setup
+
+Install the development tools (Rust, uv and more) with mise:
+
+```bash
+mise trust
+mise install
+```
 
 ### Development
 
 Run the control plane:
 
 ```bash
-cargo run -p nightd
+mise run nightd
 ```
 
 Run the CLI:
 
 ```bash
-cargo run -p nightctl
+mise run nightctl
 ```
 
 ### Build the container images

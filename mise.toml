@@ -1,0 +1,22 @@
+[tools]
+pi = "latest"
+rust = { version = "latest", components = ["clippy", "rustfmt"] }
+uv = "latest"
+
+[tasks.nightd]
+description = "Run nightd in dev mode"
+run = "cargo run -p nightd"
+
+[tasks.nightctl]
+description = "Run nightctl in dev mode"
+run = "cargo run -p nightctl"
+
+[tasks.ci]
+description = "Run the build checks and build the docs"
+run = [
+  "cargo fmt --all --check",
+  "cargo check --workspace --all-targets --locked",
+  "cargo clippy --workspace --all-targets --locked -- -D warnings",
+  "cargo test --workspace --locked",
+  "uvx zensical build --clean",
+]
