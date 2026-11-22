@@ -27,7 +27,7 @@ mise run nightd
 Run the CLI:
 
 ```bash
-mise run nightctl
+mise run nightctl -- run --agent foo "Hello"
 ```
 
 ### Build the container images
