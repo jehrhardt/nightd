@@ -1,76 +1,43 @@
-//! The HTTP API exposed by nightd.
+//! The gRPC API exposed by nightd.
 
-use axum::{
-    Json, Router,
-    extract::rejection::JsonRejection,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    routing::{get, post},
+use nightd_api::{
+    InfoRequest, InfoResponse, NightdService, NightdServiceServer, RunRequest, RunResponse,
+    v1::info_response::Status as InfoStatus,
 };
-use nightd_client::{ErrorResponse, InfoResponse, RunRequest, RunResponse};
+use tonic::{Request, Response, Status};
 
-/// An error returned by the API.
-#[derive(Debug)]
-struct ApiError {
-    status: StatusCode,
-    message: String,
-}
+/// The nightd API service.
+#[derive(Debug, Default)]
+pub(crate) struct Api;
 
-impl ApiError {
-    fn new(status: StatusCode, message: impl Into<String>) -> Self {
-        Self {
-            status,
-            message: message.into(),
+#[tonic::async_trait]
+impl NightdService for Api {
+    async fn run(&self, request: Request<RunRequest>) -> Result<Response<RunResponse>, Status> {
+        let request = request.into_inner();
+
+        let agent = request.agent.trim();
+        if agent.is_empty() {
+            return Err(Status::invalid_argument("agent is required"));
         }
+
+        let prompt = request.prompt.trim();
+        if prompt.is_empty() {
+            return Err(Status::invalid_argument("prompt is required"));
+        }
+
+        Ok(Response::new(RunResponse {
+            response: format!("agent {agent:?} received prompt {prompt:?} (fake response)"),
+        }))
     }
 
-    fn bad_request(message: impl Into<String>) -> Self {
-        Self::new(StatusCode::BAD_REQUEST, message)
+    async fn info(&self, _request: Request<InfoRequest>) -> Result<Response<InfoResponse>, Status> {
+        Ok(Response::new(InfoResponse {
+            status: InfoStatus::Ok as i32,
+        }))
     }
 }
 
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        (
-            self.status,
-            Json(ErrorResponse {
-                error: self.message,
-            }),
-        )
-            .into_response()
-    }
-}
-
-/// Creates the router of the nightd API.
-pub(crate) fn router() -> Router {
-    Router::new()
-        .route("/run", post(run))
-        .route("/info", get(info))
-}
-
-async fn run(
-    request: Result<Json<RunRequest>, JsonRejection>,
-) -> Result<Json<RunResponse>, ApiError> {
-    let Json(request) = request
-        .map_err(|rejection| ApiError::new(StatusCode::BAD_REQUEST, rejection.body_text()))?;
-
-    let agent = request.agent.trim();
-    if agent.is_empty() {
-        return Err(ApiError::bad_request("agent is required"));
-    }
-
-    let prompt = request.prompt.trim();
-    if prompt.is_empty() {
-        return Err(ApiError::bad_request("prompt is required"));
-    }
-
-    Ok(Json(RunResponse {
-        response: format!("agent {agent:?} received prompt {prompt:?} (fake response)"),
-    }))
-}
-
-async fn info() -> Json<InfoResponse> {
-    Json(InfoResponse {
-        status: "OK".to_owned(),
-    })
+/// Creates the gRPC service.
+pub(crate) fn service() -> NightdServiceServer<Api> {
+    NightdServiceServer::new(Api)
 }

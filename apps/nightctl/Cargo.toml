@@ -8,7 +8,7 @@ repository.workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
-nightd-client.workspace = true
+nightd-api.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]

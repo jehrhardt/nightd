@@ -11,6 +11,10 @@ use std::{
 use tokio::net::TcpListener;
 #[cfg(unix)]
 use tokio::net::UnixListener;
+use tokio_stream::wrappers::TcpListenerStream;
+#[cfg(unix)]
+use tokio_stream::wrappers::UnixListenerStream;
+use tonic::transport::Server as TonicServer;
 
 use crate::api;
 
@@ -114,8 +118,8 @@ impl Server {
     }
 
     /// Serves requests until the server is stopped.
-    pub async fn serve(self) -> io::Result<()> {
-        let app = api::router();
+    pub async fn serve(self) -> Result<(), tonic::transport::Error> {
+        let service = api::service();
 
         #[cfg(unix)]
         let Self { listener, _socket } = self;
@@ -124,11 +128,17 @@ impl Server {
 
         match listener {
             #[cfg(unix)]
-            Listener::Unix(listener) => axum::serve(listener, app).await,
-            Listener::Tcp(listener) => axum::serve(listener, app).await,
-        }?;
-
-        Ok(())
+            Listener::Unix(listener) => {
+                TonicServer::builder()
+                    .serve_with_incoming(service, UnixListenerStream::new(listener))
+                    .await
+            }
+            Listener::Tcp(listener) => {
+                TonicServer::builder()
+                    .serve_with_incoming(service, TcpListenerStream::new(listener))
+                    .await
+            }
+        }
     }
 }
 

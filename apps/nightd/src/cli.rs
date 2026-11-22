@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 
 #[cfg(not(unix))]
-use nightd_client::DEFAULT_BIND;
-use nightd_client::DEFAULT_PORT;
+use nightd_api::DEFAULT_BIND;
+use nightd_api::DEFAULT_PORT;
 #[cfg(unix)]
-use nightd_client::socket_path;
+use nightd_api::socket_path;
 
 use crate::{Config, Server};
 
@@ -20,7 +20,7 @@ use crate::{Config, Server};
     name = "nightd",
     version,
     about = "Control plane for the nightd agent platform",
-    long_about = "nightd is the control plane of the nightd agent platform and exposes its HTTP API."
+    long_about = "nightd is the control plane of the nightd agent platform and exposes its gRPC API."
 )]
 struct Cli {
     #[command(subcommand)]

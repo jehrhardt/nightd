@@ -6,14 +6,16 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use nightd_client::{Client, Target};
+use nightd_api::{
+    InfoRequest, RunRequest, Target, client, v1::info_response::Status as InfoStatus,
+};
 
 #[derive(Debug, Parser)]
 #[command(
     name = "nightctl",
     version,
     about = "Control the nightd agent platform",
-    long_about = "nightctl controls the nightd agent platform through its HTTP API."
+    long_about = "nightctl controls the nightd agent platform through its gRPC API."
 )]
 struct Cli {
     #[command(flatten)]
@@ -83,26 +85,38 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
             }
 
             let prompt = prompt.join(" ");
-            let client = Client::new(&target)?;
+            let mut client = client(&target).await?;
 
             let response = client
-                .run(agent, &prompt)
+                .run(RunRequest {
+                    agent: agent.to_owned(),
+                    prompt,
+                })
                 .await
-                .map_err(|error| format!("run agent {agent:?}: {error}"))?;
+                .map_err(|status| format!("run agent {agent:?}: {status}"))?
+                .into_inner();
 
-            println!("{response}");
+            println!("{}", response.response);
         }
         Command::Info => {
-            let client = Client::new(&target)?;
+            let mut client = client(&target).await?;
 
             let info = client
-                .info()
+                .info(InfoRequest {})
                 .await
-                .map_err(|error| format!("fetch info from {target}: {error}"))?;
+                .map_err(|status| format!("fetch info from {target}: {status}"))?
+                .into_inner();
 
-            println!("status: {}", info.status);
+            println!("status: {}", status_name(info.status()));
         }
     }
 
     Ok(())
+}
+
+fn status_name(status: InfoStatus) -> &'static str {
+    match status {
+        InfoStatus::Unspecified => "UNSPECIFIED",
+        InfoStatus::Ok => "OK",
+    }
 }

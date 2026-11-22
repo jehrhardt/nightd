@@ -6,13 +6,16 @@ use std::{
 };
 
 use nightd::{Config, Server};
-use nightd_client::{Client, Target};
+use nightd_api::{
+    InfoRequest, NightdServiceClient, RunRequest, Target, v1::info_response::Status as InfoStatus,
+};
 use tokio::task::JoinHandle;
+use tonic::transport::Channel;
 #[cfg(unix)]
 use uuid::Uuid;
 
 struct RunningServer {
-    address: String,
+    target: Target,
     #[cfg(unix)]
     socket: Option<PathBuf>,
     task: JoinHandle<()>,
@@ -22,14 +25,14 @@ impl RunningServer {
     #[cfg(unix)]
     async fn unix() -> Self {
         let socket = socket_path("api");
+        let target = Target::unix(socket.clone());
         let server = Server::bind(Config::unix(&socket)).await.unwrap();
-        let address = server.address().unwrap();
         let task = tokio::spawn(async move {
             server.serve().await.unwrap();
         });
 
         Self {
-            address,
+            target,
             socket: Some(socket),
             task,
         }
@@ -38,26 +41,21 @@ impl RunningServer {
     async fn tcp() -> Self {
         let server = Server::bind(Config::tcp([127, 0, 0, 1], 0)).await.unwrap();
         let address = server.address().unwrap();
+        let port = address.rsplit_once(':').unwrap().1.parse().unwrap();
         let task = tokio::spawn(async move {
             server.serve().await.unwrap();
         });
 
         Self {
-            address,
+            target: Target::tcp("127.0.0.1", port),
             #[cfg(unix)]
             socket: None,
             task,
         }
     }
 
-    #[cfg(unix)]
-    fn unix_client(&self) -> Client {
-        Client::new(&Target::unix(self.socket.clone().unwrap())).unwrap()
-    }
-
-    fn tcp_client(&self) -> Client {
-        let port = self.address.rsplit_once(':').unwrap().1.parse().unwrap();
-        Client::new(&Target::tcp("127.0.0.1", port)).unwrap()
+    async fn client(&self) -> NightdServiceClient<Channel> {
+        nightd_api::client(&self.target).await.unwrap()
     }
 }
 
@@ -81,14 +79,21 @@ fn socket_path(name: &str) -> PathBuf {
 #[tokio::test]
 async fn unix_socket_serves_info_and_run() {
     let server = RunningServer::unix().await;
-    let client = server.unix_client();
+    let mut client = server.client().await;
 
-    let info = client.info().await.unwrap();
-    assert_eq!(info.status, "OK");
+    let info = client.info(InfoRequest {}).await.unwrap().into_inner();
+    assert_eq!(info.status(), InfoStatus::Ok);
 
-    let response = client.run("foo", "Hello").await.unwrap();
+    let response = client
+        .run(RunRequest {
+            agent: "foo".to_owned(),
+            prompt: "Hello".to_owned(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(
-        response,
+        response.response,
         "agent \"foo\" received prompt \"Hello\" (fake response)"
     );
 }
@@ -96,14 +101,21 @@ async fn unix_socket_serves_info_and_run() {
 #[tokio::test]
 async fn tcp_server_serves_info_and_run() {
     let server = RunningServer::tcp().await;
-    let client = server.tcp_client();
+    let mut client = server.client().await;
 
-    let info = client.info().await.unwrap();
-    assert_eq!(info.status, "OK");
+    let info = client.info(InfoRequest {}).await.unwrap().into_inner();
+    assert_eq!(info.status(), InfoStatus::Ok);
 
-    let response = client.run("foo", "Hello").await.unwrap();
+    let response = client
+        .run(RunRequest {
+            agent: "foo".to_owned(),
+            prompt: "Hello".to_owned(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(
-        response,
+        response.response,
         "agent \"foo\" received prompt \"Hello\" (fake response)"
     );
 }
@@ -112,7 +124,7 @@ async fn tcp_server_serves_info_and_run() {
 #[tokio::test]
 async fn run_requires_agent_and_prompt() {
     let server = RunningServer::unix().await;
-    let client = server.unix_client();
+    let mut client = server.client().await;
 
     let cases = [
         (" ", "Hello", "agent is required"),
@@ -120,12 +132,16 @@ async fn run_requires_agent_and_prompt() {
     ];
 
     for (agent, prompt, message) in cases {
-        let error = client.run(agent, prompt).await.unwrap_err().to_string();
+        let status = client
+            .run(RunRequest {
+                agent: agent.to_owned(),
+                prompt: prompt.to_owned(),
+            })
+            .await
+            .unwrap_err();
 
-        assert!(
-            error.contains(message),
-            "error {error:?} does not contain {message:?}"
-        );
+        assert_eq!(status.code(), tonic::Code::InvalidArgument);
+        assert_eq!(status.message(), message);
     }
 }
 
@@ -151,7 +167,7 @@ async fn creates_a_private_socket_directory() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cli_starts_nightd_on_a_unix_socket() {
     let socket = socket_path("cli");
-    let client = Client::new(&Target::unix(socket.clone())).unwrap();
+    let target = Target::unix(socket.clone());
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_nightd"))
         .arg("start")
@@ -165,7 +181,9 @@ async fn cli_starts_nightd_on_a_unix_socket() {
 
     let mut ready = false;
     for _ in 0..100 {
-        if client.info().await.is_ok() {
+        if let Ok(mut client) = nightd_api::client(&target).await
+            && client.info(InfoRequest {}).await.is_ok()
+        {
             ready = true;
             break;
         }
@@ -175,8 +193,9 @@ async fn cli_starts_nightd_on_a_unix_socket() {
 
     assert!(ready, "nightd did not become ready");
 
-    let info = client.info().await.unwrap();
-    assert_eq!(info.status, "OK");
+    let mut client = nightd_api::client(&target).await.unwrap();
+    let info = client.info(InfoRequest {}).await.unwrap().into_inner();
+    assert_eq!(info.status(), InfoStatus::Ok);
 
     child.kill().unwrap();
     child.wait().unwrap();

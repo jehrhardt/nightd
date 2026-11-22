@@ -1,0 +1,25 @@
+[package]
+name = "nightd-api"
+description = "Generated API and transport helpers for nightd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hyper-util.workspace = true
+prost.workspace = true
+tokio = { workspace = true, features = ["net"] }
+tonic.workspace = true
+tonic-prost.workspace = true
+tower.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+dirs.workspace = true
+
+[build-dependencies]
+protoc-bin-vendored.workspace = true
+tonic-prost-build.workspace = true
+
+[lints]
+workspace = true
