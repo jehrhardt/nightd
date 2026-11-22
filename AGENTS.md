@@ -26,6 +26,15 @@ Before committing changes on the documentation or the page overrides, verify the
 uvx zensical build --clean
 ```
 
+Then verify the result visually with screenshots of the built site:
+
+```bash
+python3 -m http.server 8123 -d site &
+uvx playwright screenshot --full-page --viewport-size "1280,900" http://127.0.0.1:8123/ /tmp/shot.png
+```
+
+Inspect the screenshots and only commit once the rendered page matches the intent. Clean up afterwards (stop the server, remove temporary files).
+
 ### Commit Messages
 
 Use conventional commits for all commit messages.
