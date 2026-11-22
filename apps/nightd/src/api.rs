@@ -11,32 +11,32 @@ use serde::{Deserialize, Serialize};
 
 /// The request to run an agent session.
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RunRequest {
+struct RunRequest {
     /// The name of the agent to run.
-    pub agent: String,
+    agent: String,
     /// The prompt the agent is started with.
-    pub prompt: String,
+    prompt: String,
 }
 
 /// The response of an agent session.
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RunResponse {
+struct RunResponse {
     /// The agent's response.
-    pub response: String,
+    response: String,
 }
 
 /// The information about the nightd server.
 #[derive(Debug, Deserialize, Serialize)]
-pub struct InfoResponse {
+struct InfoResponse {
     /// The current status of the nightd server.
-    pub status: String,
+    status: String,
 }
 
 /// The body of an API error response.
 #[derive(Debug, Deserialize, Serialize)]
 struct ErrorResponse {
     /// A human readable description of the error.
-    pub error: String,
+    error: String,
 }
 
 /// An error returned by the API.

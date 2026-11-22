@@ -5,9 +5,9 @@ use std::{
     time::Duration,
 };
 
-use nightd::{Config, InfoResponse, RunResponse, Server};
+use nightd::{Config, Server};
 use reqwest::{Client, StatusCode};
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio::task::JoinHandle;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
@@ -89,7 +89,7 @@ async fn unix_socket_serves_info_and_run() {
     let server = RunningServer::unix().await;
     let client = server.unix_client();
 
-    let info: InfoResponse = client
+    let info: Value = client
         .get(server.url("/info"))
         .send()
         .await
@@ -97,9 +97,9 @@ async fn unix_socket_serves_info_and_run() {
         .json()
         .await
         .unwrap();
-    assert_eq!(info.status, "OK");
+    assert_eq!(info["status"], "OK");
 
-    let response: RunResponse = client
+    let response: Value = client
         .post(server.url("/run"))
         .json(&json!({"agent": "foo", "prompt": "Hello"}))
         .send()
@@ -109,7 +109,7 @@ async fn unix_socket_serves_info_and_run() {
         .await
         .unwrap();
     assert_eq!(
-        response.response,
+        response["response"],
         "agent \"foo\" received prompt \"Hello\" (fake response)"
     );
 }
@@ -119,7 +119,7 @@ async fn tcp_server_serves_info_and_run() {
     let server = RunningServer::tcp().await;
     let client = server.tcp_client();
 
-    let info: InfoResponse = client
+    let info: Value = client
         .get(server.url("/info"))
         .send()
         .await
@@ -127,9 +127,9 @@ async fn tcp_server_serves_info_and_run() {
         .json()
         .await
         .unwrap();
-    assert_eq!(info.status, "OK");
+    assert_eq!(info["status"], "OK");
 
-    let response: RunResponse = client
+    let response: Value = client
         .post(server.url("/run"))
         .json(&json!({"agent": "foo", "prompt": "Hello"}))
         .send()
@@ -139,7 +139,7 @@ async fn tcp_server_serves_info_and_run() {
         .await
         .unwrap();
     assert_eq!(
-        response.response,
+        response["response"],
         "agent \"foo\" received prompt \"Hello\" (fake response)"
     );
 }
@@ -210,8 +210,8 @@ async fn cli_starts_nightd_on_a_unix_socket() {
     let response = client.get("http://localhost/info").send().await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body: InfoResponse = response.json().await.unwrap();
-    assert_eq!(body.status, "OK");
+    let body: Value = response.json().await.unwrap();
+    assert_eq!(body["status"], "OK");
 
     child.kill().unwrap();
     child.wait().unwrap();
