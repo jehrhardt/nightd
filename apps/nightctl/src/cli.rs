@@ -13,7 +13,7 @@ use crate::client::{self, Client, Target, default_socket_path};
     about = "Control the nightd agent platform",
     long_about = "nightctl controls the nightd agent platform through its HTTP API."
 )]
-pub struct Cli {
+struct Cli {
     #[command(flatten)]
     connection: ConnectionArgs,
 

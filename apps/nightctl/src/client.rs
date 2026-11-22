@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// The target nightd server the client connects to.
 #[derive(Clone, Debug)]
-pub enum Target {
+pub(crate) enum Target {
     /// Connect through a Unix socket.
     Unix {
         /// The path of the socket.
@@ -24,12 +24,12 @@ pub enum Target {
 
 impl Target {
     /// Creates a target for a Unix socket.
-    pub fn unix(path: impl Into<PathBuf>) -> Self {
+    pub(crate) fn unix(path: impl Into<PathBuf>) -> Self {
         Self::Unix { path: path.into() }
     }
 
     /// Creates a target for a TCP host and port.
-    pub fn tcp(host: impl Into<String>, port: u16) -> Self {
+    pub(crate) fn tcp(host: impl Into<String>, port: u16) -> Self {
         Self::Tcp {
             host: host.into(),
             port,
@@ -47,14 +47,14 @@ impl fmt::Display for Target {
 }
 
 /// A client for the nightd HTTP API.
-pub struct Client {
+pub(crate) struct Client {
     client: reqwest::Client,
     base_url: String,
 }
 
 impl Client {
     /// Creates a client for the given target.
-    pub fn new(target: &Target) -> Result<Self, reqwest::Error> {
+    pub(crate) fn new(target: &Target) -> Result<Self, reqwest::Error> {
         let builder = reqwest::Client::builder();
 
         let (builder, base_url) = match target {
@@ -72,7 +72,7 @@ impl Client {
     }
 
     /// Starts an agent session and returns the agent's response.
-    pub async fn run(&self, agent: &str, prompt: &str) -> Result<String, ClientError> {
+    pub(crate) async fn run(&self, agent: &str, prompt: &str) -> Result<String, ClientError> {
         let response = self
             .client
             .post(format!("{}/run", self.base_url))
@@ -89,7 +89,7 @@ impl Client {
     }
 
     /// Fetches information about the nightd server.
-    pub async fn info(&self) -> Result<InfoResponse, ClientError> {
+    pub(crate) async fn info(&self) -> Result<InfoResponse, ClientError> {
         let response = self
             .client
             .get(format!("{}/info", self.base_url))
@@ -141,9 +141,9 @@ struct RunResponse {
 
 /// The information about the nightd server.
 #[derive(Debug, Deserialize)]
-pub struct InfoResponse {
+pub(crate) struct InfoResponse {
     /// The current status of the nightd server.
-    pub status: String,
+    pub(crate) status: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,7 +153,7 @@ struct ErrorResponse {
 
 /// An error returned by the nightd client.
 #[derive(Debug)]
-pub enum ClientError {
+pub(crate) enum ClientError {
     /// The request could not be sent or the response could not be read.
     Http(reqwest::Error),
     /// The server responded with an error.
@@ -193,27 +193,9 @@ impl From<reqwest::Error> for ClientError {
 }
 
 /// Returns the default Unix socket path of nightd.
-pub fn default_socket_path() -> PathBuf {
+pub(crate) fn default_socket_path() -> PathBuf {
     std::env::temp_dir().join("nightd.sock")
 }
 
 /// Returns the default port nightd listens on when TCP is used.
-pub const DEFAULT_PORT: u16 = 8080;
-
-/// Returns the target configured by the environment.
-pub fn target_from_env() -> Target {
-    match std::env::var("NIGHTD_HOST") {
-        Ok(host) if !host.is_empty() => Target::tcp(
-            host,
-            std::env::var("NIGHTD_PORT")
-                .ok()
-                .and_then(|port| port.parse().ok())
-                .unwrap_or(DEFAULT_PORT),
-        ),
-        _ => Target::unix(
-            std::env::var_os("NIGHTD_SOCKET")
-                .map(PathBuf::from)
-                .unwrap_or_else(default_socket_path),
-        ),
-    }
-}
+pub(crate) const DEFAULT_PORT: u16 = 8080;

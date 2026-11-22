@@ -34,21 +34,20 @@ pub struct InfoResponse {
 
 /// The body of an API error response.
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ErrorResponse {
+struct ErrorResponse {
     /// A human readable description of the error.
     pub error: String,
 }
 
 /// An error returned by the API.
 #[derive(Debug)]
-pub struct ApiError {
+struct ApiError {
     status: StatusCode,
     message: String,
 }
 
 impl ApiError {
-    /// Creates a new API error with the given status and message.
-    pub fn new(status: StatusCode, message: impl Into<String>) -> Self {
+    fn new(status: StatusCode, message: impl Into<String>) -> Self {
         Self {
             status,
             message: message.into(),
@@ -73,7 +72,7 @@ impl IntoResponse for ApiError {
 }
 
 /// Creates the router of the nightd API.
-pub fn router() -> Router {
+pub(crate) fn router() -> Router {
     Router::new()
         .route("/run", post(run))
         .route("/info", get(info))

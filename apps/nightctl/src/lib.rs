@@ -1,6 +1,6 @@
 //! The CLI to control nightd.
 
-pub mod cli;
-pub mod client;
+pub(crate) mod cli;
+pub(crate) mod client;
 
 pub use cli::run;

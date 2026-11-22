@@ -5,10 +5,7 @@ use std::{
     time::Duration,
 };
 
-use nightd::{
-    api::{InfoResponse, RunResponse},
-    server::{Config, Server},
-};
+use nightd::{Config, InfoResponse, RunResponse, Server};
 use reqwest::{Client, StatusCode};
 use serde_json::json;
 use tokio::task::JoinHandle;

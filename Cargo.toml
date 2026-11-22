@@ -8,6 +8,9 @@ edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/nightd-ai/nightd"
 
+[workspace.lints.rust]
+unreachable_pub = "deny"
+
 [workspace.dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 clap = { version = "4", features = ["env"] }

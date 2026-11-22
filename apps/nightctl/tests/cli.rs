@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use nightd::server::{Config, Server};
+use nightd::{Config, Server};
 use tokio::task::JoinHandle;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
