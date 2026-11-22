@@ -8,16 +8,12 @@ repository.workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
-reqwest.workspace = true
-serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
+nightd-client.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 nightd = { path = "../nightd" }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-dirs.workspace = true
+uuid.workspace = true
 
 [lints]
 workspace = true

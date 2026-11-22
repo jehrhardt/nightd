@@ -8,10 +8,12 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 
 #[cfg(not(unix))]
-use crate::DEFAULT_BIND;
+use nightd_client::DEFAULT_BIND;
+use nightd_client::DEFAULT_PORT;
 #[cfg(unix)]
-use crate::default_socket_path;
-use crate::{Config, DEFAULT_PORT, Server};
+use nightd_client::socket_path;
+
+use crate::{Config, Server};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -77,7 +79,7 @@ async fn start(args: StartArgs) -> Result<(), Box<dyn Error>> {
 #[cfg(unix)]
 fn default_config(args: StartArgs) -> Config {
     Config::Unix {
-        path: args.socket.unwrap_or_else(default_socket_path),
+        path: socket_path(args.socket),
     }
 }
 

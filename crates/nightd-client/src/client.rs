@@ -1,66 +1,23 @@
-//! A client for the nightd HTTP API.
+//! The HTTP client for the nightd API.
 
 use std::{error::Error, fmt};
 
-#[cfg(unix)]
-use std::path::PathBuf;
-
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
 
-/// The target nightd server the client connects to.
-#[derive(Clone, Debug)]
-pub(crate) enum Target {
-    /// Connect through a Unix socket.
-    #[cfg(unix)]
-    Unix {
-        /// The path of the socket.
-        path: PathBuf,
-    },
-    /// Connect through TCP.
-    Tcp {
-        /// The host of the server.
-        host: String,
-        /// The port of the server.
-        port: u16,
-    },
-}
-
-impl Target {
-    /// Creates a target for a Unix socket.
-    #[cfg(unix)]
-    pub(crate) fn unix(path: impl Into<PathBuf>) -> Self {
-        Self::Unix { path: path.into() }
-    }
-
-    /// Creates a target for a TCP host and port.
-    pub(crate) fn tcp(host: impl Into<String>, port: u16) -> Self {
-        Self::Tcp {
-            host: host.into(),
-            port,
-        }
-    }
-}
-
-impl fmt::Display for Target {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            #[cfg(unix)]
-            Self::Unix { path } => write!(f, "{} (unix)", path.display()),
-            Self::Tcp { host, port } => write!(f, "{host}:{port}"),
-        }
-    }
-}
+use crate::{
+    api::{ErrorResponse, InfoResponse, RunRequest, RunResponse},
+    target::Target,
+};
 
 /// A client for the nightd HTTP API.
-pub(crate) struct Client {
+pub struct Client {
     client: reqwest::Client,
     base_url: String,
 }
 
 impl Client {
     /// Creates a client for the given target.
-    pub(crate) fn new(target: &Target) -> Result<Self, reqwest::Error> {
+    pub fn new(target: &Target) -> Result<Self, reqwest::Error> {
         let builder = reqwest::Client::builder();
 
         let (builder, base_url) = match target {
@@ -79,7 +36,7 @@ impl Client {
     }
 
     /// Starts an agent session and returns the agent's response.
-    pub(crate) async fn run(&self, agent: &str, prompt: &str) -> Result<String, ClientError> {
+    pub async fn run(&self, agent: &str, prompt: &str) -> Result<String, ClientError> {
         let response = self
             .client
             .post(format!("{}/run", self.base_url))
@@ -96,7 +53,7 @@ impl Client {
     }
 
     /// Fetches information about the nightd server.
-    pub(crate) async fn info(&self) -> Result<InfoResponse, ClientError> {
+    pub async fn info(&self) -> Result<InfoResponse, ClientError> {
         let response = self
             .client
             .get(format!("{}/info", self.base_url))
@@ -135,32 +92,9 @@ fn tcp_base_url(host: &str, port: u16) -> String {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct RunRequest {
-    agent: String,
-    prompt: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct RunResponse {
-    response: String,
-}
-
-/// The information about the nightd server.
-#[derive(Debug, Deserialize)]
-pub(crate) struct InfoResponse {
-    /// The current status of the nightd server.
-    pub(crate) status: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ErrorResponse {
-    error: String,
-}
-
 /// An error returned by the nightd client.
 #[derive(Debug)]
-pub(crate) enum ClientError {
+pub enum ClientError {
     /// The request could not be sent or the response could not be read.
     Http(reqwest::Error),
     /// The server responded with an error.
@@ -198,28 +132,3 @@ impl From<reqwest::Error> for ClientError {
         Self::Http(error)
     }
 }
-
-/// Returns the default Unix socket path of nightd.
-#[cfg(unix)]
-pub(crate) fn default_socket_path() -> PathBuf {
-    default_socket_dir().join("nightd.sock")
-}
-
-#[cfg(target_os = "linux")]
-fn default_socket_dir() -> PathBuf {
-    dirs::runtime_dir()
-        .unwrap_or_else(|| PathBuf::from("/run"))
-        .join("nightd")
-}
-
-#[cfg(all(unix, not(target_os = "linux")))]
-fn default_socket_dir() -> PathBuf {
-    std::env::temp_dir().join("nightd")
-}
-
-/// Returns the default port nightd listens on when TCP is used.
-pub(crate) const DEFAULT_PORT: u16 = 8080;
-
-/// Returns the default TCP host nightd listens on.
-#[cfg(not(unix))]
-pub(crate) const DEFAULT_HOST: &str = "127.0.0.1";

@@ -1,16 +1,12 @@
 use std::process::{Command, Output};
 
 #[cfg(unix)]
-use std::{
-    path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::path::{Path, PathBuf};
 
 use nightd::{Config, Server};
 use tokio::task::JoinHandle;
-
 #[cfg(unix)]
-static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+use uuid::Uuid;
 
 struct RunningServer {
     address: String,
@@ -74,8 +70,7 @@ impl Drop for RunningServer {
 
 #[cfg(unix)]
 fn socket_path(name: &str) -> PathBuf {
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("nightd-{name}-{}-{id}.sock", std::process::id()))
+    std::env::temp_dir().join(format!("nightd-{name}-{}.sock", Uuid::new_v4()))
 }
 
 fn nightctl() -> Command {

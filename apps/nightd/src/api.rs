@@ -7,37 +7,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use serde::{Deserialize, Serialize};
-
-/// The request to run an agent session.
-#[derive(Debug, Deserialize, Serialize)]
-struct RunRequest {
-    /// The name of the agent to run.
-    agent: String,
-    /// The prompt the agent is started with.
-    prompt: String,
-}
-
-/// The response of an agent session.
-#[derive(Debug, Deserialize, Serialize)]
-struct RunResponse {
-    /// The agent's response.
-    response: String,
-}
-
-/// The information about the nightd server.
-#[derive(Debug, Deserialize, Serialize)]
-struct InfoResponse {
-    /// The current status of the nightd server.
-    status: String,
-}
-
-/// The body of an API error response.
-#[derive(Debug, Deserialize, Serialize)]
-struct ErrorResponse {
-    /// A human readable description of the error.
-    error: String,
-}
+use nightd_client::{ErrorResponse, InfoResponse, RunRequest, RunResponse};
 
 /// An error returned by the API.
 #[derive(Debug)]

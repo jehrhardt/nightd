@@ -1,20 +1,15 @@
 #[cfg(unix)]
 use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::{Command, Stdio},
-    sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
 
 use nightd::{Config, Server};
-use reqwest::Client;
-#[cfg(unix)]
-use reqwest::StatusCode;
-use serde_json::{Value, json};
+use nightd_client::{Client, Target};
 use tokio::task::JoinHandle;
-
 #[cfg(unix)]
-static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+use uuid::Uuid;
 
 struct RunningServer {
     address: String,
@@ -57,20 +52,12 @@ impl RunningServer {
 
     #[cfg(unix)]
     fn unix_client(&self) -> Client {
-        unix_client(self.socket.as_deref().unwrap())
+        Client::new(&Target::unix(self.socket.clone().unwrap())).unwrap()
     }
 
     fn tcp_client(&self) -> Client {
-        Client::new()
-    }
-
-    fn url(&self, path: &str) -> String {
-        #[cfg(unix)]
-        if self.socket.is_some() {
-            return format!("http://localhost{path}");
-        }
-
-        format!("http://{}{path}", self.address)
+        let port = self.address.rsplit_once(':').unwrap().1.parse().unwrap();
+        Client::new(&Target::tcp("127.0.0.1", port)).unwrap()
     }
 }
 
@@ -87,13 +74,7 @@ impl Drop for RunningServer {
 
 #[cfg(unix)]
 fn socket_path(name: &str) -> PathBuf {
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("nightd-{name}-{}-{id}.sock", std::process::id()))
-}
-
-#[cfg(unix)]
-fn unix_client(path: &Path) -> Client {
-    Client::builder().unix_socket(path).build().unwrap()
+    std::env::temp_dir().join(format!("nightd-{name}-{}.sock", Uuid::new_v4()))
 }
 
 #[cfg(unix)]
@@ -102,27 +83,12 @@ async fn unix_socket_serves_info_and_run() {
     let server = RunningServer::unix().await;
     let client = server.unix_client();
 
-    let info: Value = client
-        .get(server.url("/info"))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    assert_eq!(info["status"], "OK");
+    let info = client.info().await.unwrap();
+    assert_eq!(info.status, "OK");
 
-    let response: Value = client
-        .post(server.url("/run"))
-        .json(&json!({"agent": "foo", "prompt": "Hello"}))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let response = client.run("foo", "Hello").await.unwrap();
     assert_eq!(
-        response["response"],
+        response,
         "agent \"foo\" received prompt \"Hello\" (fake response)"
     );
 }
@@ -132,27 +98,12 @@ async fn tcp_server_serves_info_and_run() {
     let server = RunningServer::tcp().await;
     let client = server.tcp_client();
 
-    let info: Value = client
-        .get(server.url("/info"))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    assert_eq!(info["status"], "OK");
+    let info = client.info().await.unwrap();
+    assert_eq!(info.status, "OK");
 
-    let response: Value = client
-        .post(server.url("/run"))
-        .json(&json!({"agent": "foo", "prompt": "Hello"}))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let response = client.run("foo", "Hello").await.unwrap();
     assert_eq!(
-        response["response"],
+        response,
         "agent \"foo\" received prompt \"Hello\" (fake response)"
     );
 }
@@ -164,27 +115,16 @@ async fn run_requires_agent_and_prompt() {
     let client = server.unix_client();
 
     let cases = [
-        (
-            json!({"agent": " ", "prompt": "Hello"}),
-            "agent is required",
-        ),
-        (json!({"agent": "foo", "prompt": " "}), "prompt is required"),
+        (" ", "Hello", "agent is required"),
+        ("foo", " ", "prompt is required"),
     ];
 
-    for (request, message) in cases {
-        let response = client
-            .post(server.url("/run"))
-            .json(&request)
-            .send()
-            .await
-            .unwrap();
+    for (agent, prompt, message) in cases {
+        let error = client.run(agent, prompt).await.unwrap_err().to_string();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-
-        let body = response.text().await.unwrap();
         assert!(
-            body.contains(message),
-            "body {body:?} does not contain {message:?}"
+            error.contains(message),
+            "error {error:?} does not contain {message:?}"
         );
     }
 }
@@ -211,7 +151,7 @@ async fn creates_a_private_socket_directory() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cli_starts_nightd_on_a_unix_socket() {
     let socket = socket_path("cli");
-    let client = unix_client(&socket);
+    let client = Client::new(&Target::unix(socket.clone())).unwrap();
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_nightd"))
         .arg("start")
@@ -225,12 +165,7 @@ async fn cli_starts_nightd_on_a_unix_socket() {
 
     let mut ready = false;
     for _ in 0..100 {
-        if client
-            .get("http://localhost/info")
-            .send()
-            .await
-            .is_ok_and(|response| response.status().is_success())
-        {
+        if client.info().await.is_ok() {
             ready = true;
             break;
         }
@@ -240,11 +175,8 @@ async fn cli_starts_nightd_on_a_unix_socket() {
 
     assert!(ready, "nightd did not become ready");
 
-    let response = client.get("http://localhost/info").send().await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body: Value = response.json().await.unwrap();
-    assert_eq!(body["status"], "OK");
+    let info = client.info().await.unwrap();
+    assert_eq!(info.status, "OK");
 
     child.kill().unwrap();
     child.wait().unwrap();

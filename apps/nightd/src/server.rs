@@ -14,29 +14,6 @@ use tokio::net::UnixListener;
 
 use crate::api;
 
-/// The default address nightd binds to when TCP is used.
-pub const DEFAULT_BIND: &str = "127.0.0.1";
-/// The default port nightd listens on when TCP is used.
-pub const DEFAULT_PORT: u16 = 8080;
-
-/// Returns the default Unix socket path of nightd.
-#[cfg(unix)]
-pub fn default_socket_path() -> PathBuf {
-    default_socket_dir().join("nightd.sock")
-}
-
-#[cfg(target_os = "linux")]
-fn default_socket_dir() -> PathBuf {
-    dirs::runtime_dir()
-        .unwrap_or_else(|| PathBuf::from("/run"))
-        .join("nightd")
-}
-
-#[cfg(all(unix, not(target_os = "linux")))]
-fn default_socket_dir() -> PathBuf {
-    std::env::temp_dir().join("nightd")
-}
-
 /// Configures how the nightd server listens for connections.
 #[derive(Clone, Debug)]
 pub enum Config {

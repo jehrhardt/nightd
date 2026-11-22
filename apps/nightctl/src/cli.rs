@@ -6,10 +6,7 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-
-#[cfg(unix)]
-use crate::client::default_socket_path;
-use crate::client::{self, Client, Target};
+use nightd_client::{Client, Target};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -44,24 +41,15 @@ struct ConnectionArgs {
 
 impl ConnectionArgs {
     fn target(&self) -> Target {
-        if let Some(host) = self.host.clone() {
-            return Target::tcp(host, self.port.unwrap_or(client::DEFAULT_PORT));
+        #[cfg(unix)]
+        {
+            Target::from_options(self.socket.clone(), self.host.clone(), self.port)
         }
 
-        self.default_target()
-    }
-
-    #[cfg(unix)]
-    fn default_target(&self) -> Target {
-        Target::unix(self.socket.clone().unwrap_or_else(default_socket_path))
-    }
-
-    #[cfg(not(unix))]
-    fn default_target(&self) -> Target {
-        Target::tcp(
-            client::DEFAULT_HOST,
-            self.port.unwrap_or(client::DEFAULT_PORT),
-        )
+        #[cfg(not(unix))]
+        {
+            Target::from_options(None, self.host.clone(), self.port)
+        }
     }
 }
 
