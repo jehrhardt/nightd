@@ -24,5 +24,4 @@ Pair a model with a harness, then call the nightd API from your app. nightd will
 We're building nightd in the open and would love your input:
 
 - **⭐ Star** us on [GitHub](https://github.com/nightd-ai/nightd) to show support
-- **🦋 Follow** [@nightd.ai](https://bsky.app/profile/nightd.ai) on Bluesky for updates
 - **💬 Join** our [Discord](https://discord.gg/XzwUyUQZ9r) to share feedback and ideas

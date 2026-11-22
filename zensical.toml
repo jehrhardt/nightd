@@ -315,10 +315,6 @@ icon = "fontawesome/brands/github"
 link = "https://github.com/jehrhardt/nightd"
 
 [[project.extra.social]]
-icon = "fontawesome/brands/bluesky"
-link = "https://bsky.app/profile/nightd.ai"
-
-[[project.extra.social]]
 icon = "fontawesome/brands/discord"
 link = "https://discord.gg/XzwUyUQZ9r"
 
