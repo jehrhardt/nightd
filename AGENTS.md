@@ -1,6 +1,6 @@
 # Guidelines for agents
 
-This is a mono-repo that uses `pnpm` as a package manager.
+This is a Rust mono-repo that uses `cargo` as a build tool. Applications live in the `apps` directory of the Cargo workspace.
 
 ## Credentials
 
@@ -12,10 +12,10 @@ CRITICAL: NEVER try to read or write to `.env`. ALWAYS ask the user to modify it
 
 Before committing changes on code, tests or dependencies do the following tasks:
 
-- Format code - `pnpm run fmt`
-- Type check - `pnpm -r typecheck`
-- Lint - `pnpm run lint`
-- Run tests - `pnpm -r test`
+- Format code - `cargo fmt`
+- Type check - `cargo check --workspace --all-targets`
+- Lint - `cargo clippy --workspace --all-targets -- -D warnings`
+- Run tests - `cargo test --workspace`
 - Fix all errors and warnings
 
 ### Commit Messages

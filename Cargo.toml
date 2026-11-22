@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["apps/nightd", "apps/nightctl"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/nightd-ai/nightd"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
