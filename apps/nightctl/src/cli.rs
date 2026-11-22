@@ -2,13 +2,8 @@
 
 use std::error::Error;
 
-#[cfg(unix)]
-use std::path::PathBuf;
-
 use clap::{Args, Parser, Subcommand};
-use nightd_api::{
-    InfoRequest, RunRequest, Target, client, v1::info_response::Status as InfoStatus,
-};
+use nightd_api::{DEFAULT_BIND, DEFAULT_PORT, InfoRequest, RunRequest, client};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -27,32 +22,13 @@ struct Cli {
 
 #[derive(Debug, Args)]
 struct ConnectionArgs {
-    /// Path of the Unix socket nightd listens on (default)
-    #[cfg(unix)]
-    #[arg(long, global = true, value_name = "PATH", env = "NIGHTD_SOCKET")]
-    socket: Option<PathBuf>,
+    /// Host of the nightd server
+    #[arg(long, global = true, value_name = "HOST", default_value = DEFAULT_BIND, env = "NIGHTD_HOST")]
+    host: String,
 
-    /// Host of the nightd server to connect to over TCP
-    #[arg(long, global = true, value_name = "HOST", env = "NIGHTD_HOST")]
-    host: Option<String>,
-
-    /// Port of the nightd server to connect to over TCP
-    #[arg(short, long, global = true, value_name = "PORT", env = "NIGHTD_PORT")]
-    port: Option<u16>,
-}
-
-impl ConnectionArgs {
-    fn target(&self) -> Target {
-        #[cfg(unix)]
-        {
-            Target::from_options(self.socket.clone(), self.host.clone(), self.port)
-        }
-
-        #[cfg(not(unix))]
-        {
-            Target::from_options(None, self.host.clone(), self.port)
-        }
-    }
+    /// Port of the nightd server
+    #[arg(short, long, global = true, value_name = "PORT", default_value_t = DEFAULT_PORT, env = "NIGHTD_PORT")]
+    port: u16,
 }
 
 #[derive(Debug, Subcommand)]
@@ -75,7 +51,8 @@ enum Command {
 /// Runs nightctl with the given process arguments.
 pub async fn run() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-    let target = cli.connection.target();
+    let host = cli.connection.host;
+    let port = cli.connection.port;
 
     match cli.command {
         Command::Run { agent, prompt } => {
@@ -85,7 +62,7 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
             }
 
             let prompt = prompt.join(" ");
-            let mut client = client(&target).await?;
+            let mut client = client(&host, port).await?;
 
             let response = client
                 .run(RunRequest {
@@ -99,12 +76,12 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
             println!("{}", response.response);
         }
         Command::Info => {
-            let mut client = client(&target).await?;
+            let mut client = client(&host, port).await?;
 
             let info = client
                 .info(InfoRequest {})
                 .await
-                .map_err(|status| format!("fetch info from {target}: {status}"))?
+                .map_err(|status| format!("fetch info from {host}:{port}: {status}"))?
                 .into_inner();
 
             println!("status: {}", status_name(info.status()));
@@ -114,9 +91,11 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn status_name(status: InfoStatus) -> &'static str {
+fn status_name(status: nightd_api::v1::info_response::Status) -> &'static str {
+    use nightd_api::v1::info_response::Status;
+
     match status {
-        InfoStatus::Unspecified => "UNSPECIFIED",
-        InfoStatus::Ok => "OK",
+        Status::Unspecified => "UNSPECIFIED",
+        Status::Ok => "OK",
     }
 }

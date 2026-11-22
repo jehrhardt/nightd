@@ -5,4 +5,4 @@ pub(crate) mod cli;
 pub(crate) mod server;
 
 pub use cli::run;
-pub use server::{Config, Server};
+pub use server::Server;

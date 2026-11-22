@@ -1,106 +1,62 @@
-#[cfg(unix)]
 use std::{
-    path::PathBuf,
+    net::TcpListener,
     process::{Command, Stdio},
     time::Duration,
 };
 
-use nightd::{Config, Server};
+use nightd::Server;
 use nightd_api::{
-    InfoRequest, NightdServiceClient, RunRequest, Target, v1::info_response::Status as InfoStatus,
+    InfoRequest, NightdServiceClient, RunRequest, v1::info_response::Status as InfoStatus,
 };
 use tokio::task::JoinHandle;
 use tonic::transport::Channel;
-#[cfg(unix)]
-use uuid::Uuid;
 
 struct RunningServer {
-    target: Target,
-    #[cfg(unix)]
-    socket: Option<PathBuf>,
+    host: &'static str,
+    port: u16,
     task: JoinHandle<()>,
 }
 
 impl RunningServer {
-    #[cfg(unix)]
-    async fn unix() -> Self {
-        let socket = socket_path("api");
-        let target = Target::unix(socket.clone());
-        let server = Server::bind(Config::unix(&socket)).await.unwrap();
+    async fn start() -> Self {
+        let host = "127.0.0.1";
+        let server = Server::bind(host.parse::<std::net::IpAddr>().unwrap(), 0)
+            .await
+            .unwrap();
+        let port = server
+            .address()
+            .unwrap()
+            .rsplit_once(':')
+            .unwrap()
+            .1
+            .parse()
+            .unwrap();
         let task = tokio::spawn(async move {
             server.serve().await.unwrap();
         });
 
-        Self {
-            target,
-            socket: Some(socket),
-            task,
-        }
-    }
-
-    async fn tcp() -> Self {
-        let server = Server::bind(Config::tcp([127, 0, 0, 1], 0)).await.unwrap();
-        let address = server.address().unwrap();
-        let port = address.rsplit_once(':').unwrap().1.parse().unwrap();
-        let task = tokio::spawn(async move {
-            server.serve().await.unwrap();
-        });
-
-        Self {
-            target: Target::tcp("127.0.0.1", port),
-            #[cfg(unix)]
-            socket: None,
-            task,
-        }
+        Self { host, port, task }
     }
 
     async fn client(&self) -> NightdServiceClient<Channel> {
-        nightd_api::client(&self.target).await.unwrap()
+        nightd_api::client(self.host, self.port).await.unwrap()
     }
 }
 
 impl Drop for RunningServer {
     fn drop(&mut self) {
         self.task.abort();
-
-        #[cfg(unix)]
-        if let Some(socket) = &self.socket {
-            let _ = std::fs::remove_file(socket);
-        }
     }
 }
 
-#[cfg(unix)]
-fn socket_path(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("nightd-{name}-{}.sock", Uuid::new_v4()))
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn unix_socket_serves_info_and_run() {
-    let server = RunningServer::unix().await;
-    let mut client = server.client().await;
-
-    let info = client.info(InfoRequest {}).await.unwrap().into_inner();
-    assert_eq!(info.status(), InfoStatus::Ok);
-
-    let response = client
-        .run(RunRequest {
-            agent: "foo".to_owned(),
-            prompt: "Hello".to_owned(),
-        })
-        .await
-        .unwrap()
-        .into_inner();
-    assert_eq!(
-        response.response,
-        "agent \"foo\" received prompt \"Hello\" (fake response)"
-    );
+fn free_port() -> u16 {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    listener.local_addr().unwrap().port()
 }
 
 #[tokio::test]
 async fn tcp_server_serves_info_and_run() {
-    let server = RunningServer::tcp().await;
+    let server = RunningServer::start().await;
     let mut client = server.client().await;
 
     let info = client.info(InfoRequest {}).await.unwrap().into_inner();
@@ -120,10 +76,9 @@ async fn tcp_server_serves_info_and_run() {
     );
 }
 
-#[cfg(unix)]
 #[tokio::test]
 async fn run_requires_agent_and_prompt() {
-    let server = RunningServer::unix().await;
+    let server = RunningServer::start().await;
     let mut client = server.client().await;
 
     let cases = [
@@ -145,35 +100,15 @@ async fn run_requires_agent_and_prompt() {
     }
 }
 
-#[cfg(unix)]
-#[tokio::test]
-async fn creates_a_private_socket_directory() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let socket = socket_path("mode")
-        .with_extension("dir")
-        .join("nightd.sock");
-    let server = Server::bind(Config::unix(&socket)).await.unwrap();
-    let dir = socket.parent().unwrap();
-
-    let mode = std::fs::metadata(dir).unwrap().permissions().mode() & 0o777;
-    assert_eq!(mode, 0o700);
-
-    drop(server);
-    std::fs::remove_dir_all(dir).unwrap();
-}
-
-#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn cli_starts_nightd_on_a_unix_socket() {
-    let socket = socket_path("cli");
-    let target = Target::unix(socket.clone());
+async fn cli_starts_nightd_on_tcp() {
+    let port = free_port();
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_nightd"))
-        .arg("start")
-        .arg("--socket")
-        .arg(&socket)
-        .env_remove("NIGHTD_SOCKET")
+        .args(["start", "--bind", "127.0.0.1", "--port"])
+        .arg(port.to_string())
+        .env_remove("NIGHTD_HOST")
+        .env_remove("NIGHTD_PORT")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -181,7 +116,7 @@ async fn cli_starts_nightd_on_a_unix_socket() {
 
     let mut ready = false;
     for _ in 0..100 {
-        if let Ok(mut client) = nightd_api::client(&target).await
+        if let Ok(mut client) = nightd_api::client("127.0.0.1", port).await
             && client.info(InfoRequest {}).await.is_ok()
         {
             ready = true;
@@ -193,12 +128,10 @@ async fn cli_starts_nightd_on_a_unix_socket() {
 
     assert!(ready, "nightd did not become ready");
 
-    let mut client = nightd_api::client(&target).await.unwrap();
+    let mut client = nightd_api::client("127.0.0.1", port).await.unwrap();
     let info = client.info(InfoRequest {}).await.unwrap().into_inner();
     assert_eq!(info.status(), InfoStatus::Ok);
 
     child.kill().unwrap();
     child.wait().unwrap();
-
-    let _ = std::fs::remove_file(socket);
 }

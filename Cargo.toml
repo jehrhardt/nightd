@@ -13,8 +13,6 @@ unreachable_pub = "deny"
 
 [workspace.dependencies]
 clap = { version = "4", features = ["env"] }
-dirs = "7"
-hyper-util = { version = "0.1", features = ["tokio"] }
 nightd-api = { path = "crates/nightd-api" }
 prost = "0.14"
 protoc-bin-vendored = "3"
@@ -23,5 +21,3 @@ tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", default-features = false, features = ["codegen", "transport"] }
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
-tower = { version = "0.5", features = ["util"] }
-uuid = { version = "1", features = ["v4"] }
