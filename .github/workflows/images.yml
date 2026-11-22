@@ -1,0 +1,46 @@
+name: Images
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman
+
+      - name: Build images
+        run: |
+          podman build --target release-nightd --tag "${IMAGE_PREFIX}/nightd:${GITHUB_SHA}" .
+          podman build --target release-nightctl --tag "${IMAGE_PREFIX}/nightctl:${GITHUB_SHA}" .
+
+      - name: Publish images
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          podman login ghcr.io --username "${REGISTRY_USER}" --password-stdin <<< "${REGISTRY_TOKEN}"
+
+          for image in nightd nightctl; do
+            podman tag "${IMAGE_PREFIX}/${image}:${GITHUB_SHA}" "${IMAGE_PREFIX}/${image}:latest"
+            podman push "${IMAGE_PREFIX}/${image}:${GITHUB_SHA}"
+            podman push "${IMAGE_PREFIX}/${image}:latest"
+          done
