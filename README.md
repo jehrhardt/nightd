@@ -7,12 +7,6 @@ A daemon to schedule autonomous coding agents.
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Podman](https://podman.io/docs/installation)
 
-### Setup
-
-```bash
-cargo build
-```
-
 ### Development
 
 Run the control plane:
