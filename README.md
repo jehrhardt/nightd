@@ -1,6 +1,6 @@
 # nightd
 
-A daemon to schedule autonomous coding agents.
+An agent platform you can customize to your needs.
 
 ### Prerequisites
 
