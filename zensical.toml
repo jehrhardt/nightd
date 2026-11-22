@@ -38,8 +38,8 @@ Copyright &copy; 2026 Cozy Bytes GmbH
 """
 
 # Github project settings
-repo_url = "https://github.com/nightd-ai/nightd"
-repo_name = "nightd-ai/nightd"
+repo_url = "https://github.com/jehrhardt/nightd"
+repo_name = "jehrhardt/nightd"
 edit_uri = "edit/main/docs/"
 
 # Zensical supports both implicit navigation and explicitly defined navigation.
@@ -312,7 +312,7 @@ toggle.name = "Switch to light mode"
 # ----------------------------------------------------------------------------
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/nightd-ai/nightd"
+link = "https://github.com/jehrhardt/nightd"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/bluesky"

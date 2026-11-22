@@ -1,17 +1,14 @@
+# Build output
+/target/
+
+# Cargo
+**/*.rs.bk
+
 # Website
 site/
 
 # Local environment variables
 .env
 
-# Dependencies
-node_modules/
-
-# Build output
-dist/
-coverage/
-
-# Test artifacts
-.vitest/
 # CocoIndex Code (ccc)
 /.cocoindex_code/

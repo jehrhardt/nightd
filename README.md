@@ -1,30 +1,31 @@
 # nightd
 
-A daemon to schedule autonomous coding agents.
+An agent platform you can customize to your needs.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org)
-- [pnpm](https://pnpm.io)
-
-### Setup
-
-```bash
-pnpm install
-```
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Podman](https://podman.io/docs/installation)
 
 ### Development
 
 Run the control plane:
 
 ```bash
-pnpm --filter nightd dev
+cargo run -p nightd
 ```
 
-Run the data plane:
+Run the CLI:
 
 ```bash
-pnpm --filter nightlet dev
+cargo run -p nightctl
+```
+
+### Build the container images
+
+```bash
+podman build --target release-nightd --tag nightd .
+podman build --target release-nightctl --tag nightctl .
 ```
 
 ### Run the docs

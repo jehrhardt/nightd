@@ -11,6 +11,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
     name: Build
@@ -18,19 +21,42 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          version: 11
-      - uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
       - name: Check formatting
-        run: pnpm run fmt:check
+        run: cargo fmt --all --check
       - name: Type check
-        run: pnpm -r typecheck
+        run: cargo check --workspace --all-targets --locked
       - name: Lint
-        run: pnpm run lint
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
-        run: pnpm -r test
+        run: cargo test --workspace --locked
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+      - name: Build docs
+        run: uvx zensical build --clean
+
+  images:
+    name: Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman
+
+      - name: Build images
+        run: |
+          podman build --target release-nightd --tag nightd .
+          podman build --target release-nightctl --tag nightctl .

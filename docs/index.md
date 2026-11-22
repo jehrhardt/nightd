@@ -2,21 +2,22 @@
 title: Welcome to nightd
 ---
 
-Schedule coding sessions in `nightd` and let the daemon automatically do the changes for you. Instead of working interactively with your coding agent, everything is scheduled so you can review finished work.
+Launch cloud agents from your own app with the nightd API. You control both parts of the agent: the model and the harness.
 
-!!! warning "Under Active Development"
+!!! info "Under Active Development"
 
-    `nightd` is currently being built and is not ready for use. You can try it out by checking out the source code. We will provide easy-to-install releases later. Early adopters welcome — help shape the future!
+    nightd isn't ready to use yet. Follow development on GitHub and tell us what you'd like to build.
 
 ## How it works
 
-Launch the `nightlet` connector on your server or laptop and connect it to `nightd`. When a tasks is scheduled in `nightd`, it will be picked up automatically and a pull request is created.
+Pair a model with a harness, then call the nightd API from your app. nightd will launch and manage the session, and your app will interact with the agent using the [Agent Client Protocol (ACP)](https://agentclientprotocol.com).
 
 ## Features
 
-- **Background Tasks** — Create tasks and `nightd` will implement them overnight
-- **Build on Pi Durable** — Coding sessions can be resumed, even if you closed your laptop
-- **Open Source** — Self-host today; managed cloud coming soon
+- **Harness customization from day one** — Set agent instructions in [`AGENTS.md`](https://agents.md), add [agent skills](https://agentskills.io), and extend your harness with Python scripts.
+- **Start with Pi Durable or bring your own** — Use the default harness based on Pi Durable to get started quickly, or build on any harness.
+- **Multiple runtime backends** — Amazon Bedrock AgentCore Runtime will be the first backend, running agent sessions in isolated microVMs. More backends will follow.
+- **On the roadmap** — [OKF](https://okf.md) knowledge bundles and recursive self-improvement for agents.
 
 ## Join the Community
 
