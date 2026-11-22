@@ -4,6 +4,7 @@ WORKDIR /src
 
 COPY Cargo.toml Cargo.lock ./
 COPY apps ./apps
+COPY crates ./crates
 RUN cargo build --release --locked -p nightd -p nightctl
 
 FROM docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS base
@@ -22,8 +23,11 @@ COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificat
 FROM release-base AS release-nightd
 
 ENTRYPOINT ["/usr/local/bin/nightd"]
+CMD ["start", "--bind", "0.0.0.0", "--port", "8080"]
 
 COPY --from=build /src/target/release/nightd /usr/local/bin/nightd
+
+EXPOSE 8080
 
 USER nightd:nightd
 

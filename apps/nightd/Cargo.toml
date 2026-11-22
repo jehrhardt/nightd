@@ -5,3 +5,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+nightd-api.workspace = true
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
+tokio-stream.workspace = true
+tonic.workspace = true
+
+[lints]
+workspace = true

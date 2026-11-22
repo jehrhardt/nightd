@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package nightd.v1;
+
+// NightdService is the control plane API exposed by nightd.
+service NightdService {
+  // Run starts an agent session and returns the agent's response.
+  rpc Run(RunRequest) returns (RunResponse);
+
+  // Info returns information about the nightd server.
+  rpc Info(InfoRequest) returns (InfoResponse);
+}
+
+// RunRequest describes an agent session to run.
+message RunRequest {
+  // Agent is the name of the agent to run.
+  string agent = 1;
+  // Prompt is the prompt the agent is started with.
+  string prompt = 2;
+}
+
+// RunResponse contains the response of an agent session.
+message RunResponse {
+  // Response is the agent's response.
+  string response = 1;
+}
+
+// InfoRequest is the request for server information.
+message InfoRequest {}
+
+// InfoResponse contains information about the nightd server.
+message InfoResponse {
+  // Status is the current status of the nightd server.
+  Status status = 1;
+
+  // Status describes the health of the nightd server.
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_OK = 1;
+  }
+}
