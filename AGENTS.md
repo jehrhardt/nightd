@@ -18,6 +18,14 @@ Before committing changes on code, tests or dependencies do the following tasks:
 - Run tests - `cargo test --workspace`
 - Fix all errors and warnings
 
+### Documentation
+
+Before committing changes on the documentation or the page overrides, verify the documentation builds without errors:
+
+```bash
+uvx zensical build --clean
+```
+
 ### Commit Messages
 
 Use conventional commits for all commit messages.
