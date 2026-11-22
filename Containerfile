@@ -10,7 +10,7 @@ FROM docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e0847866021
 
 RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -g 1000 -S nightd \
-    && adduser -u 1000 -S -G nightd -h /nonexistent -s /sbin/nologin nightd
+    && adduser -u 1000 -S -G nightd -h /home/nightd -s /sbin/nologin nightd
 
 FROM scratch AS release-base
 
