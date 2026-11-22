@@ -12,10 +12,7 @@ CRITICAL: NEVER try to read or write to `.env`. ALWAYS ask the user to modify it
 
 Before committing changes on code, tests or dependencies do the following tasks:
 
-- Format code - `cargo fmt`
-- Type check - `cargo check --workspace --all-targets`
-- Lint - `cargo clippy --workspace --all-targets -- -D warnings`
-- Run tests - `cargo test --workspace`
+- Run all checks - `mise run ci`
 - Fix all errors and warnings
 
 ### Documentation
