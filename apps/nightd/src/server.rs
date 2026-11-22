@@ -1,13 +1,16 @@
 //! The nightd server.
 
+use std::{fmt, io, net::IpAddr};
+
+#[cfg(unix)]
 use std::{
-    fmt, io,
-    net::IpAddr,
-    os::unix::fs::FileTypeExt,
+    os::unix::fs::{DirBuilderExt, FileTypeExt},
     path::{Path, PathBuf},
 };
 
-use tokio::net::{TcpListener, UnixListener};
+use tokio::net::TcpListener;
+#[cfg(unix)]
+use tokio::net::UnixListener;
 
 use crate::api;
 
@@ -17,14 +20,28 @@ pub const DEFAULT_BIND: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
 
 /// Returns the default Unix socket path of nightd.
+#[cfg(unix)]
 pub fn default_socket_path() -> PathBuf {
-    std::env::temp_dir().join("nightd.sock")
+    default_socket_dir().join("nightd.sock")
+}
+
+#[cfg(target_os = "linux")]
+fn default_socket_dir() -> PathBuf {
+    dirs::runtime_dir()
+        .unwrap_or_else(|| PathBuf::from("/run"))
+        .join("nightd")
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+fn default_socket_dir() -> PathBuf {
+    std::env::temp_dir().join("nightd")
 }
 
 /// Configures how the nightd server listens for connections.
 #[derive(Clone, Debug)]
 pub enum Config {
     /// Listen on a Unix socket.
+    #[cfg(unix)]
     Unix {
         /// The path of the socket.
         path: PathBuf,
@@ -40,6 +57,7 @@ pub enum Config {
 
 impl Config {
     /// Creates a configuration for a Unix socket.
+    #[cfg(unix)]
     pub fn unix(path: impl Into<PathBuf>) -> Self {
         Self::Unix { path: path.into() }
     }
@@ -56,6 +74,7 @@ impl Config {
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            #[cfg(unix)]
             Self::Unix { path } => write!(f, "{} (unix)", path.display()),
             Self::Tcp { bind, port } => write!(f, "{bind}:{port}"),
         }
@@ -63,6 +82,7 @@ impl fmt::Display for Config {
 }
 
 enum Listener {
+    #[cfg(unix)]
     Unix(UnixListener),
     Tcp(TcpListener),
 }
@@ -70,6 +90,7 @@ enum Listener {
 /// A bound nightd server that is ready to serve requests.
 pub struct Server {
     listener: Listener,
+    #[cfg(unix)]
     _socket: Option<SocketGuard>,
 }
 
@@ -77,7 +98,9 @@ impl Server {
     /// Binds the server to the configured socket.
     pub async fn bind(config: Config) -> io::Result<Self> {
         match config {
+            #[cfg(unix)]
             Config::Unix { path } => {
+                ensure_socket_dir(&path)?;
                 remove_stale_socket(&path)?;
 
                 let listener = UnixListener::bind(&path)?;
@@ -92,6 +115,7 @@ impl Server {
 
                 Ok(Self {
                     listener: Listener::Tcp(listener),
+                    #[cfg(unix)]
                     _socket: None,
                 })
             }
@@ -101,6 +125,7 @@ impl Server {
     /// Returns the address the server is listening on.
     pub fn address(&self) -> io::Result<String> {
         match &self.listener {
+            #[cfg(unix)]
             Listener::Unix(listener) => listener.local_addr().map(|address| {
                 address.as_pathname().map_or_else(
                     || "unix socket".to_owned(),
@@ -113,24 +138,39 @@ impl Server {
 
     /// Serves requests until the server is stopped.
     pub async fn serve(self) -> io::Result<()> {
-        let Self {
-            listener,
-            _socket: socket,
-        } = self;
-
         let app = api::router();
 
+        #[cfg(unix)]
+        let Self { listener, _socket } = self;
+        #[cfg(not(unix))]
+        let Self { listener } = self;
+
         match listener {
+            #[cfg(unix)]
             Listener::Unix(listener) => axum::serve(listener, app).await,
             Listener::Tcp(listener) => axum::serve(listener, app).await,
         }?;
-
-        drop(socket);
 
         Ok(())
     }
 }
 
+#[cfg(unix)]
+fn ensure_socket_dir(path: &Path) -> io::Result<()> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+
+    if parent.as_os_str().is_empty() {
+        return Ok(());
+    }
+
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true).mode(0o700);
+    builder.create(parent)
+}
+
+#[cfg(unix)]
 fn remove_stale_socket(path: &Path) -> io::Result<()> {
     match std::fs::symlink_metadata(path) {
         Ok(metadata) => {
@@ -148,8 +188,10 @@ fn remove_stale_socket(path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(unix)]
 struct SocketGuard(PathBuf);
 
+#[cfg(unix)]
 impl Drop for SocketGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);

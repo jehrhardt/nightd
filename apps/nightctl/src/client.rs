@@ -1,6 +1,9 @@
 //! A client for the nightd HTTP API.
 
-use std::{error::Error, fmt, path::PathBuf};
+use std::{error::Error, fmt};
+
+#[cfg(unix)]
+use std::path::PathBuf;
 
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -9,6 +12,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug)]
 pub(crate) enum Target {
     /// Connect through a Unix socket.
+    #[cfg(unix)]
     Unix {
         /// The path of the socket.
         path: PathBuf,
@@ -24,6 +28,7 @@ pub(crate) enum Target {
 
 impl Target {
     /// Creates a target for a Unix socket.
+    #[cfg(unix)]
     pub(crate) fn unix(path: impl Into<PathBuf>) -> Self {
         Self::Unix { path: path.into() }
     }
@@ -40,6 +45,7 @@ impl Target {
 impl fmt::Display for Target {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            #[cfg(unix)]
             Self::Unix { path } => write!(f, "{} (unix)", path.display()),
             Self::Tcp { host, port } => write!(f, "{host}:{port}"),
         }
@@ -58,6 +64,7 @@ impl Client {
         let builder = reqwest::Client::builder();
 
         let (builder, base_url) = match target {
+            #[cfg(unix)]
             Target::Unix { path } => (
                 builder.unix_socket(path.as_path()),
                 "http://localhost".to_owned(),
@@ -193,9 +200,26 @@ impl From<reqwest::Error> for ClientError {
 }
 
 /// Returns the default Unix socket path of nightd.
+#[cfg(unix)]
 pub(crate) fn default_socket_path() -> PathBuf {
-    std::env::temp_dir().join("nightd.sock")
+    default_socket_dir().join("nightd.sock")
+}
+
+#[cfg(target_os = "linux")]
+fn default_socket_dir() -> PathBuf {
+    dirs::runtime_dir()
+        .unwrap_or_else(|| PathBuf::from("/run"))
+        .join("nightd")
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+fn default_socket_dir() -> PathBuf {
+    std::env::temp_dir().join("nightd")
 }
 
 /// Returns the default port nightd listens on when TCP is used.
 pub(crate) const DEFAULT_PORT: u16 = 8080;
+
+/// Returns the default TCP host nightd listens on.
+#[cfg(not(unix))]
+pub(crate) const DEFAULT_HOST: &str = "127.0.0.1";

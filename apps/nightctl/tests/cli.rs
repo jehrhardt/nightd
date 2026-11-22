@@ -1,21 +1,26 @@
+use std::process::{Command, Output};
+
+#[cfg(unix)]
 use std::{
     path::{Path, PathBuf},
-    process::{Command, Output},
     sync::atomic::{AtomicU64, Ordering},
 };
 
 use nightd::{Config, Server};
 use tokio::task::JoinHandle;
 
+#[cfg(unix)]
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
 struct RunningServer {
     address: String,
+    #[cfg(unix)]
     socket: Option<PathBuf>,
     task: JoinHandle<()>,
 }
 
 impl RunningServer {
+    #[cfg(unix)]
     async fn unix() -> Self {
         let socket = socket_path("cli");
         let server = Server::bind(Config::unix(&socket)).await.unwrap();
@@ -40,11 +45,13 @@ impl RunningServer {
 
         Self {
             address,
+            #[cfg(unix)]
             socket: None,
             task,
         }
     }
 
+    #[cfg(unix)]
     fn socket(&self) -> &Path {
         self.socket.as_deref().unwrap()
     }
@@ -58,12 +65,14 @@ impl Drop for RunningServer {
     fn drop(&mut self) {
         self.task.abort();
 
+        #[cfg(unix)]
         if let Some(socket) = &self.socket {
             let _ = std::fs::remove_file(socket);
         }
     }
 }
 
+#[cfg(unix)]
 fn socket_path(name: &str) -> PathBuf {
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("nightd-{name}-{}-{id}.sock", std::process::id()))
@@ -88,6 +97,7 @@ fn combined(output: &Output) -> String {
     text
 }
 
+#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn info_uses_the_socket_from_the_environment() {
     let server = RunningServer::unix().await;
@@ -102,6 +112,7 @@ async fn info_uses_the_socket_from_the_environment() {
     assert!(String::from_utf8_lossy(&output.stdout).contains("status: OK"));
 }
 
+#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_uses_the_socket_flag() {
     let server = RunningServer::unix().await;

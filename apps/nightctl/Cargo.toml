@@ -16,5 +16,8 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 [dev-dependencies]
 nightd = { path = "../nightd" }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+dirs.workspace = true
+
 [lints]
 workspace = true

@@ -5,4 +5,6 @@ pub(crate) mod cli;
 pub(crate) mod server;
 
 pub use cli::run;
-pub use server::{Config, DEFAULT_BIND, DEFAULT_PORT, Server, default_socket_path};
+#[cfg(unix)]
+pub use server::default_socket_path;
+pub use server::{Config, DEFAULT_BIND, DEFAULT_PORT, Server};

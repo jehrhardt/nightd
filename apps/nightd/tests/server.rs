@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -6,19 +7,24 @@ use std::{
 };
 
 use nightd::{Config, Server};
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
+#[cfg(unix)]
+use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::task::JoinHandle;
 
+#[cfg(unix)]
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
 struct RunningServer {
     address: String,
+    #[cfg(unix)]
     socket: Option<PathBuf>,
     task: JoinHandle<()>,
 }
 
 impl RunningServer {
+    #[cfg(unix)]
     async fn unix() -> Self {
         let socket = socket_path("api");
         let server = Server::bind(Config::unix(&socket)).await.unwrap();
@@ -43,11 +49,13 @@ impl RunningServer {
 
         Self {
             address,
+            #[cfg(unix)]
             socket: None,
             task,
         }
     }
 
+    #[cfg(unix)]
     fn unix_client(&self) -> Client {
         unix_client(self.socket.as_deref().unwrap())
     }
@@ -57,11 +65,12 @@ impl RunningServer {
     }
 
     fn url(&self, path: &str) -> String {
+        #[cfg(unix)]
         if self.socket.is_some() {
-            format!("http://localhost{path}")
-        } else {
-            format!("http://{}{path}", self.address)
+            return format!("http://localhost{path}");
         }
+
+        format!("http://{}{path}", self.address)
     }
 }
 
@@ -69,21 +78,25 @@ impl Drop for RunningServer {
     fn drop(&mut self) {
         self.task.abort();
 
+        #[cfg(unix)]
         if let Some(socket) = &self.socket {
             let _ = std::fs::remove_file(socket);
         }
     }
 }
 
+#[cfg(unix)]
 fn socket_path(name: &str) -> PathBuf {
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("nightd-{name}-{}-{id}.sock", std::process::id()))
 }
 
+#[cfg(unix)]
 fn unix_client(path: &Path) -> Client {
     Client::builder().unix_socket(path).build().unwrap()
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn unix_socket_serves_info_and_run() {
     let server = RunningServer::unix().await;
@@ -144,6 +157,7 @@ async fn tcp_server_serves_info_and_run() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn run_requires_agent_and_prompt() {
     let server = RunningServer::unix().await;
@@ -175,6 +189,25 @@ async fn run_requires_agent_and_prompt() {
     }
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn creates_a_private_socket_directory() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let socket = socket_path("mode")
+        .with_extension("dir")
+        .join("nightd.sock");
+    let server = Server::bind(Config::unix(&socket)).await.unwrap();
+    let dir = socket.parent().unwrap();
+
+    let mode = std::fs::metadata(dir).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o700);
+
+    drop(server);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cli_starts_nightd_on_a_unix_socket() {
     let socket = socket_path("cli");

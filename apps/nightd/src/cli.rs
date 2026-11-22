@@ -1,10 +1,17 @@
 //! The command line interface of nightd.
 
-use std::{error::Error, net::IpAddr, path::PathBuf};
+use std::{error::Error, net::IpAddr};
+
+#[cfg(unix)]
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use crate::{Config, DEFAULT_PORT, Server, default_socket_path};
+#[cfg(not(unix))]
+use crate::DEFAULT_BIND;
+#[cfg(unix)]
+use crate::default_socket_path;
+use crate::{Config, DEFAULT_PORT, Server};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -27,6 +34,7 @@ enum Command {
 #[derive(Debug, Args)]
 struct StartArgs {
     /// Path of the Unix socket to listen on (default when --bind is not set)
+    #[cfg(unix)]
     #[arg(long, value_name = "PATH", env = "NIGHTD_SOCKET")]
     socket: Option<PathBuf>,
 
@@ -51,9 +59,7 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
 async fn start(args: StartArgs) -> Result<(), Box<dyn Error>> {
     let config = match args.bind {
         Some(bind) => Config::tcp(bind, args.port.unwrap_or(DEFAULT_PORT)),
-        None => Config::Unix {
-            path: args.socket.unwrap_or_else(default_socket_path),
-        },
+        None => default_config(args),
     };
 
     let server = Server::bind(config).await?;
@@ -66,6 +72,23 @@ async fn start(args: StartArgs) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(unix)]
+fn default_config(args: StartArgs) -> Config {
+    Config::Unix {
+        path: args.socket.unwrap_or_else(default_socket_path),
+    }
+}
+
+#[cfg(not(unix))]
+fn default_config(_args: StartArgs) -> Config {
+    Config::tcp(
+        DEFAULT_BIND
+            .parse::<IpAddr>()
+            .expect("the default bind address is valid"),
+        DEFAULT_PORT,
+    )
 }
 
 async fn shutdown_signal() {

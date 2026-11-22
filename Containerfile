@@ -10,7 +10,10 @@ FROM docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e0847866021
 
 RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -g 1000 -S nightd \
-    && adduser -u 1000 -S -G nightd -h /home/nightd -s /sbin/nologin nightd
+    && adduser -u 1000 -S -G nightd -h /home/nightd -s /sbin/nologin nightd \
+    && mkdir -p /run/nightd \
+    && chown nightd:nightd /run/nightd \
+    && chmod 700 /run/nightd
 
 FROM scratch AS release-base
 
@@ -20,6 +23,8 @@ COPY --from=base /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 FROM release-base AS release-nightd
+
+COPY --from=base /run /run
 
 ENTRYPOINT ["/usr/local/bin/nightd"]
 

@@ -1,10 +1,15 @@
 //! The command line interface of nightctl.
 
-use std::{error::Error, path::PathBuf};
+use std::error::Error;
+
+#[cfg(unix)]
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use crate::client::{self, Client, Target, default_socket_path};
+#[cfg(unix)]
+use crate::client::default_socket_path;
+use crate::client::{self, Client, Target};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -24,6 +29,7 @@ struct Cli {
 #[derive(Debug, Args)]
 struct ConnectionArgs {
     /// Path of the Unix socket nightd listens on (default)
+    #[cfg(unix)]
     #[arg(long, global = true, value_name = "PATH", env = "NIGHTD_SOCKET")]
     socket: Option<PathBuf>,
 
@@ -42,7 +48,20 @@ impl ConnectionArgs {
             return Target::tcp(host, self.port.unwrap_or(client::DEFAULT_PORT));
         }
 
+        self.default_target()
+    }
+
+    #[cfg(unix)]
+    fn default_target(&self) -> Target {
         Target::unix(self.socket.clone().unwrap_or_else(default_socket_path))
+    }
+
+    #[cfg(not(unix))]
+    fn default_target(&self) -> Target {
+        Target::tcp(
+            client::DEFAULT_HOST,
+            self.port.unwrap_or(client::DEFAULT_PORT),
+        )
     }
 }
 
