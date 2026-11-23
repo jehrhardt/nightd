@@ -7,6 +7,15 @@
 # Website
 site/
 
+# Node
+node_modules/
+dist/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+
 # Local environment variables
 .env
 

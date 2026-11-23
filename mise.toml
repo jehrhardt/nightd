@@ -1,7 +1,12 @@
 [tools]
+node = "lts"
+pnpm = "latest"
 pi = "latest"
 rust = { version = "latest", components = ["clippy", "rustfmt"] }
 uv = "latest"
+
+[env]
+_.file = ".env"
 
 [tasks.nightd]
 description = "Run nightd in dev mode"
@@ -11,6 +16,10 @@ run = "cargo run -p nightd"
 description = "Run nightctl in dev mode"
 run = "cargo run -p nightctl"
 
+[tasks.nightlet]
+description = "Run nightlet in dev mode"
+run = "pnpm nightlet"
+
 [tasks.ci]
 description = "Run the build checks and build the docs"
 run = [
@@ -18,5 +27,10 @@ run = [
   "cargo check --workspace --all-targets --locked",
   "cargo clippy --workspace --all-targets --locked -- -D warnings",
   "cargo test --workspace --locked",
+  "pnpm install --frozen-lockfile",
+  "pnpm format:check",
+  "pnpm lint",
+  "pnpm typecheck",
+  "pnpm test",
   "uvx zensical build --clean",
 ]

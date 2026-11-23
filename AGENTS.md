@@ -1,6 +1,6 @@
 # Guidelines for agents
 
-This is a Rust mono-repo that uses `cargo` as a build tool. Applications live in the `apps` directory of the Cargo workspace.
+This is a Rust and TypeScript mono-repo. Rust uses `cargo`, TypeScript uses `pnpm`, and both toolchains are managed by `mise`. Applications live in `apps`.
 
 ## Credentials
 
@@ -12,6 +12,7 @@ CRITICAL: NEVER try to read or write to `.env`. ALWAYS ask the user to modify it
 
 Before committing changes on code, tests or dependencies do the following tasks:
 
+- Format TypeScript code - `pnpm format`
 - Run all checks - `mise run ci`
 - Fix all errors and warnings
 

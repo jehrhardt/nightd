@@ -1,0 +1,19 @@
+{
+  "name": "nightlet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ACP agent exposing a greeting harness built on the Pi Durable SDK",
+  "bin": {
+    "nightlet": "./src/main.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "2.9.1",
+    "@earendil-works/chord": "1.6.0",
+    "@earendil-works/pi-ai": "1.6.0",
+    "@earendil-works/pi-durable": "1.6.0"
+  }
+}

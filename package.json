@@ -1,0 +1,21 @@
+{
+  "name": "nightd",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --type-aware --type-check --ignore-pattern node_modules --ignore-pattern site .",
+    "typecheck": "tsrs --noEmit --fast",
+    "test": "vitest run",
+    "nightlet": "pnpm --filter nightlet start"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "tsrs": "7.1.0-beta.tsrs4",
+    "vitest": "^5.1.1"
+  },
+  "packageManager": "pnpm@12.21.0"
+}

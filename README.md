@@ -16,6 +16,14 @@ mise trust
 mise install
 ```
 
+Create an OpenCode API token and store it in `.env`:
+
+```bash
+uv run scripts/refresh_opencode_keys.py
+```
+
+This runs `pnpx @opencode/console token --json` and writes the returned token to `.env`.
+
 ### Development
 
 Run the control plane:

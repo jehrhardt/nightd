@@ -1,0 +1,6 @@
+packages:
+  - apps/nightlet
+
+allowBuilds:
+  "@google/genai": false
+  protobufjs: false
