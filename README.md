@@ -42,3 +42,7 @@ podman build --target release-nightctl --tag nightctl .
 ```bash
 uvx zensical serve
 ```
+
+## Contributing
+
+Request features on [Discord](https://discord.gg/XzwUyUQZ9r). We don’t accept external pull requests.
